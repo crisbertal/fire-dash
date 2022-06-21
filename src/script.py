@@ -24,11 +24,6 @@ data = ee.FeatureCollection("FAO/GAUL/2015/level2").filter(ee.Filter.eq(
 gdf = geemap.ee_to_geopandas(data)
 
 # %%
-states = ee.FeatureCollection("TIGER/2018/States")
-gdf = geemap.ee_to_geopandas(states)
-gdf.head(5)
-
-# %%
 gdf = gpd.GeoDataFrame.from_file('data/fire_andalucia2020.geojson')
 gdf.head()
 
