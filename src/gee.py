@@ -80,11 +80,11 @@ def load_final_perimeter_postgis() -> None:
 
 def load_fire_file() -> None:
     # gdf = gpd.read_file(
-    #     "../data/database_incendios.geojson").dropna().to_crs("EPSG:3035")
+    #     "../data/database_incendios_espana.geojson").dropna().to_crs("EPSG:3035")
 
+    # por el motivo que sea en algunos casos mete una columna "mean" que no he conseguido detectar
     gdf = gpd.read_file(
-        "../data/database_incendios.geojson").dropna().to_crs("EPSG:3035")
-    print(gdf.info())
+        "../data/database_incendios.geojson").drop(columns=["mean"]).dropna().to_crs("EPSG:3035")
 
     # calcular el area directamente aqui
     gdf["perim_area"] = gdf["geometry"].area / 10000
@@ -112,15 +112,31 @@ def load_fire_file() -> None:
     gdf["viento_velocidad"] = np.sqrt(
         np.power(gdf["viento_u_comp"], 2) + np.power(gdf["viento_v_comp"], 2))
 
-    print("Comparacion velocidades \n", gdf.loc[:, ["viento_u_comp", "viento_v_comp",
-          "viento_velocidad"]])
-
     # calcular direccion del viento
     # https://www.silviaalonsoperez.com/2014/06/direccion-y-velocidad-del-viento-con-componentes-meridional-y-zonal/
     gdf["viento_direccion_bruta"] = np.arctan2(
         gdf["viento_u_comp"], gdf["viento_v_comp"]) * 180 / np.pi
     gdf["viento_direccion"] = (
         gdf["viento_direccion_bruta"] + 360) % 360
+
+    # pasar las fechas a string (conservando los epoch tambien)
+    gdf["fdate_string"] = gdf["FDate"].map(
+        lambda x: datetime.fromtimestamp(x/1000 + 2))
+    gdf["idate_string"] = gdf["IDate"].map(
+        lambda x: datetime.fromtimestamp(x/1000 + 2))
+    gdf["sev_postfiredate_string"] = gdf["sev_postfiredate"].map(
+        lambda x: datetime.fromtimestamp(x/1000 + 2))
+    gdf["sev_prefiredate_string"] = gdf["sev_prefiredate"].map(
+        lambda x: datetime.fromtimestamp(x/1000 + 2))
+
+    # subir a postgis
+    # -- eliminar columnas que no van a postgis
+    # -- cambiar a wgs84 antes de subirlas
+    gdf = gdf.drop(columns=["sev_area", "sev_check",
+                   "viento_direccion_bruta"]).to_crs("EPSG:4326")
+    print(gdf.info())
+
+    # gdf.to_postgis("incendios", engine, if_exists="append", chunksize=10000)
 
     def check_areas(gdf):
         '''comprobar que las areas son correctas'''
@@ -132,11 +148,11 @@ def load_fire_file() -> None:
                                gdf["sev_unburned"]])
 
         gdf["slope_area"] = sum([gdf["topo_slopei"],
-                                gdf["topo_slopeii"],
-                                gdf["topo_slopeiii"],
-                                gdf["topo_slopeiv"],
-                                gdf["topo_slopev"],
-                                gdf["topo_slopevi"]])
+                                 gdf["topo_slopeii"],
+                                 gdf["topo_slopeiii"],
+                                 gdf["topo_slopeiv"],
+                                 gdf["topo_slopev"],
+                                 gdf["topo_slopevi"]])
 
         gdf["orientacion_area"] = sum([gdf["topo_este"],
                                        gdf["topo_noreste"],
