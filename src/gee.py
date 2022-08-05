@@ -86,9 +86,7 @@ def load_fire_file() -> None:
         "../data/database_incendios.geojson").dropna().to_crs("EPSG:3035")
     print(gdf.info())
 
-    # comprobar que las areas son correctas
-    # -- ppalmente para ver que severidad coge todo en una imagen y no en dos
-    # -- ver despues que pasa con el mapa de pendientes
+    # calcular el area directamente aqui
     gdf["perim_area"] = gdf["geometry"].area / 10000
 
     gdf["sev_area"] = sum([gdf["sev_highseverity"],
@@ -97,42 +95,78 @@ def load_fire_file() -> None:
                            gdf["sev_regrowth"],
                            gdf["sev_unburned"]])
 
-    gdf["slope_area"] = sum([gdf["topo_slopei"],
-                             gdf["topo_slopeii"],
-                             gdf["topo_slopeiii"],
-                             gdf["topo_slopeiv"],
-                             gdf["topo_slopev"],
-                             gdf["topo_slopevi"]])
+    # comprobar que incendios entran en una sola foto de landsat
+    gdf["sev_check"] = np.floor(
+        gdf["perim_area"]) - np.floor(gdf["sev_area"])
 
-    gdf["orientacion_area"] = sum([gdf["topo_este"],
-                                   gdf["topo_noreste"],
-                                   gdf["topo_noroeste"],
-                                   gdf["topo_norte"],
-                                   gdf["topo_oeste"],
-                                   gdf["topo_sur"],
-                                   gdf["topo_sureste"],
-                                   gdf["topo_suroeste"]])
+    # incendios validos para subir a postgis
+    gdf = gdf.loc[gdf["sev_check"] <= 1, :]
 
-    gdf["usos_suelo_area"] = sum([gdf["m111"], gdf["m112"], gdf["m121"], gdf["m122"],
-                                  gdf["m123"], gdf["m124"], gdf["m131"], gdf["m132"],
-                                  gdf["m133"], gdf["m141"], gdf["m142"], gdf["m211"],
-                                  gdf["m212"], gdf["m213"], gdf["m221"], gdf["m222"],
-                                  gdf["m223"], gdf["m231"], gdf["m241"], gdf["m242"],
-                                  gdf["m243"], gdf["m244"], gdf["m311"], gdf["m312"],
-                                  gdf["m313"], gdf["m321"], gdf["m322"], gdf["m323"],
-                                  gdf["m324"], gdf["m331"], gdf["m332"], gdf["m333"],
-                                  gdf["m334"], gdf["m335"], gdf["m411"], gdf["m412"],
-                                  gdf["m421"], gdf["m422"], gdf["m423"], gdf["m511"],
-                                  gdf["m512"], gdf["m521"], gdf["m522"], gdf["m523"]])
+    # transformar temperatura a celsius
+    gdf["clima_temp_max"] = gdf["clima_temp_max"] - 273.15
+    gdf["clima_temp_min"] = gdf["clima_temp_min"] - 273.15
+    gdf["clima_temp_media"] = gdf["clima_temp_media"] - 273.15
 
-    print(gdf.loc[:, ["perim_area", "sev_area",
-          "slope_area", "orientacion_area", "usos_suelo_area"]])
+    # velocidad del viento a partir de componentes
+    # -- comparar luego con la obtenida en la capa de clima2
+    gdf["viento_velocidad"] = np.sqrt(
+        np.power(gdf["viento_u_comp"], 2) + np.power(gdf["viento_v_comp"], 2))
 
-    # comprobar que sev entra en perimetro y que el incendio entra en una imagen
-    # -- Hay 64 incendios que no han entrado en una foto
-    gdf["sev_check"] = np.floor(gdf["perim_area"]) - np.floor(gdf["sev_area"])
-    print("comprobacion: \n", gdf.loc[gdf["sev_check"] > 1, [
-          "sev_check", "perim_area", "sev_area", "usos_suelo_area"]])
+    print("Comparacion velocidades \n", gdf.loc[:, ["viento_u_comp", "viento_v_comp",
+          "viento_velocidad"]])
+
+    # calcular direccion del viento
+    # https://www.silviaalonsoperez.com/2014/06/direccion-y-velocidad-del-viento-con-componentes-meridional-y-zonal/
+    gdf["viento_direccion_bruta"] = np.arctan2(
+        gdf["viento_u_comp"], gdf["viento_v_comp"]) * 180 / np.pi
+    gdf["viento_direccion"] = (
+        gdf["viento_direccion_bruta"] + 360) % 360
+
+    def check_areas(gdf):
+        '''comprobar que las areas son correctas'''
+
+        gdf["sev_area"] = sum([gdf["sev_highseverity"],
+                               gdf["sev_lowseverity"],
+                               gdf["sev_moderateseverity"],
+                               gdf["sev_regrowth"],
+                               gdf["sev_unburned"]])
+
+        gdf["slope_area"] = sum([gdf["topo_slopei"],
+                                gdf["topo_slopeii"],
+                                gdf["topo_slopeiii"],
+                                gdf["topo_slopeiv"],
+                                gdf["topo_slopev"],
+                                gdf["topo_slopevi"]])
+
+        gdf["orientacion_area"] = sum([gdf["topo_este"],
+                                       gdf["topo_noreste"],
+                                       gdf["topo_noroeste"],
+                                       gdf["topo_norte"],
+                                       gdf["topo_oeste"],
+                                       gdf["topo_sur"],
+                                       gdf["topo_sureste"],
+                                       gdf["topo_suroeste"]])
+
+        gdf["usos_suelo_area"] = sum([gdf["m111"], gdf["m112"], gdf["m121"], gdf["m122"],
+                                      gdf["m123"], gdf["m124"], gdf["m131"], gdf["m132"],
+                                      gdf["m133"], gdf["m141"], gdf["m142"], gdf["m211"],
+                                      gdf["m212"], gdf["m213"], gdf["m221"], gdf["m222"],
+                                      gdf["m223"], gdf["m231"], gdf["m241"], gdf["m242"],
+                                      gdf["m243"], gdf["m244"], gdf["m311"], gdf["m312"],
+                                      gdf["m313"], gdf["m321"], gdf["m322"], gdf["m323"],
+                                      gdf["m324"], gdf["m331"], gdf["m332"], gdf["m333"],
+                                      gdf["m334"], gdf["m335"], gdf["m411"], gdf["m412"],
+                                      gdf["m421"], gdf["m422"], gdf["m423"], gdf["m511"],
+                                      gdf["m512"], gdf["m521"], gdf["m522"], gdf["m523"]])
+
+        print(gdf.loc[:, ["perim_area", "sev_area",
+                          "slope_area", "orientacion_area", "usos_suelo_area"]])
+
+        # comprobar que sev entra en perimetro y que el incendio entra en una imagen
+        gdf["sev_check"] = np.floor(
+            gdf["perim_area"]) - np.floor(gdf["sev_area"])
+        print("comprobacion: \n", gdf.loc[gdf["sev_check"] > 1, [
+            "sev_check", "perim_area", "sev_area", "usos_suelo_area"]])
 
 
 # ---------------------------------------------------------------------------
