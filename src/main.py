@@ -1,7 +1,6 @@
 import plotly.express as px
-import dash
 
-from dash import dcc, html
+from dash import Dash, dcc, html, Input, Output
 from sqlalchemy import create_engine
 
 import spquery as spq
@@ -10,10 +9,11 @@ import spquery as spq
 engine = create_engine("postgresql://postgres:admin@localhost:5432/fire")
 
 # Aplicacion dash
-app = dash.Dash(__name__)
+app = Dash(__name__)
 
 # Ejecuta la consulta desde el repositorio de queries
-gdf, geojson = spq.get_fire_area_bounds(engine)
+'''
+gdf, geojson = spq.get_fire_area_provincia(engine)
 
 app.layout = html.Div(
     children=[
@@ -32,6 +32,7 @@ app.layout = html.Div(
         ),
     ]
 )
+'''
 
 if __name__ == "__main__":
     app.run_server(debug=True)
