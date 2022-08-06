@@ -1,25 +1,26 @@
 import json
 import geopandas as gpd
 
+
 def get_query(engine, query):
     ''' 
     Envia la query a postgis a traves del engine pasado por parametro. 
     Devuelve el geojson obtenido con el WGS84 con sistema de referencia
     '''
     # Recoge el resultado de la consulta de postgis
-    gdf = gpd.GeoDataFrame.from_postgis(query, 
-                                        engine, 
+    gdf = gpd.GeoDataFrame.from_postgis(query,
+                                        engine,
                                         geom_col="geometry")
 
     # Agregar el CRS al geojson porque pandas no lo hace todavia
     # Aqui agrega el WGS84 que es el usado por los frameworks para mostrar mapas
     gjson = json.loads(gdf.to_json())
     gjson.update({"crs": {
-            "type": "name",
-            "properties": {
+        "type": "name",
+        "properties": {
                 "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
-            }
-        }, })
+        }
+    }, })
 
     return (gdf, gjson)
 
@@ -43,6 +44,7 @@ def get_fire_area_bounds(engine):
     """
 
     return get_query(engine, query)
+
 
 def get_fire_area_provincia(engine, idate, fdate, provincia):
     ''' Devuelve los datos espaciales del incendio agregados por
@@ -122,8 +124,8 @@ def get_fire_area_provincia(engine, idate, fdate, provincia):
         incendios A
     where
         ST_Intersects(A.geometry, B.geometry) and
-        A.idate_string between {idate} and {fdate} and
-        B."ADM2_NAME" like {provincia} and 
+        A.idate_string between '{idate}' and '{fdate}' and
+        B."ADM2_NAME" like '{provincia}'
     group by 
         B."ADM2_NAME",
         B.geometry 
