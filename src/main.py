@@ -2,6 +2,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from dash import Dash, dcc, html, Input, Output
+import dash_bootstrap_components as dbc
 from sqlalchemy import create_engine
 
 import spquery as spq
@@ -10,14 +11,49 @@ import spquery as spq
 engine = create_engine("postgresql://postgres:admin@localhost:5432/fire")
 
 # Aplicacion dash
-app = Dash(__name__)
+app = Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+# estilo para Sidebar fija
+# https://dash-bootstrap-components.opensource.faculty.ai/examples/simple-sidebar/
+SIDEBAR_STYLE = {
+    "position": "fixed",
+    "top": 0,
+    "left": 0,
+    "bottom": 0,
+    "width": "16rem",
+    "padding": "2rem 1rem",
+    "background-color": "#f8f9fa",
+}
+
+# estilo para el panel de graficas
+CONTENT_STYLE = {
+    "margin-left": "18rem",
+    "margin-right": "2rem",
+    "padding": "2rem 1rem",
+}
 
 app.layout = html.Div([
-    # TODO poner para que sea con las comunidades y despues provincias
-    dcc.Dropdown(['Murcia', 'Huelva', 'Sevilla', 'Lugo',
-                 'La Rioja', 'Badajoz'], 'Huelva', id="provincia-dropdown"),
-    dcc.Graph(id='provincia-map'),
-    dcc.Graph(id='usos-donut'),
+    html.Div(
+        [
+            html.H2("Fueguito 🔥", className="display-8"),
+            html.Hr(),
+            html.P(
+                "A simple sidebar layout with navigation links", className="lead"
+            ),
+            # TODO poner para que sea con las comunidades y despues provincias
+            dcc.Dropdown(['Murcia', 'Huelva', 'Sevilla', 'Lugo',
+                          'La Rioja', 'Badajoz'], 'Huelva', id="provincia-dropdown"),
+        ],
+        style=SIDEBAR_STYLE,
+    ),
+    html.Div([
+        dbc.Row(
+            [
+                dbc.Col(dcc.Graph(id='provincia-map')),
+                dbc.Col(dcc.Graph(id='usos-donut')),
+            ]
+        ),
+    ], style=CONTENT_STYLE)
 ])
 
 
@@ -111,8 +147,15 @@ def update_usos_suelo_chart(provincia):
     values = usos.loc[0, :].values
 
     # Use `hole` to create a donut-like pie chart
-    fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])
-    fig.update_layout(transition_duration=500)
+    fig = go.Figure(
+        data=[go.Pie(labels=labels, values=values, hole=.3)])
+    # hace que la info se muestre dentro del sector
+    fig.update_traces(textposition='inside')
+    # pone un tamanio minimo. Si no cabe, no lo muestra
+    fig.update_layout(uniformtext_minsize=12,
+                      uniformtext_mode='hide',
+                      transition_duration=500,
+                      margin=dict(t=0, b=0, l=0, r=0))
 
     return fig
 
