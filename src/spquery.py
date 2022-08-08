@@ -118,7 +118,7 @@ def get_fire_area_provincia(engine, idate, fdate, provincia):
         SUM(A.m521) as m521,
         SUM(A.m522) as m522,
         SUM(A.m523) as m523,
-        B.geometry  
+        B.geometry
     from 
         provincias B,
         incendios A
@@ -129,6 +129,24 @@ def get_fire_area_provincia(engine, idate, fdate, provincia):
     group by 
         B."ADM2_NAME",
         B.geometry 
+    """
+
+    return get_query(engine, query)
+
+
+def get_fire_geometry(engine, idate, fdate, provincia):
+    query = f"""
+    select A.geometry,
+        A.perim_area as area_incendio,
+        A.id
+    from 
+        provincias B,
+        incendios A
+
+    where
+        ST_Intersects(A.geometry, B.geometry) and
+        A.idate_string between '{idate}' and '{fdate}' and
+        B."ADM2_NAME" like '{provincia}'
     """
 
     return get_query(engine, query)

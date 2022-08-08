@@ -22,14 +22,14 @@ SIDEBAR_STYLE = {
     "bottom": 0,
     "width": "16rem",
     "padding": "2rem 1rem",
-    "background-color": "#f8f9fa",
+    "background-color": "coral",
 }
 
 # estilo para el panel de graficas
 CONTENT_STYLE = {
-    "margin-left": "18rem",
-    "margin-right": "2rem",
+    "margin-left": "16rem",
     "padding": "2rem 1rem",
+    "background-color": "#F2F2F2",
 }
 
 app.layout = html.Div([
@@ -37,9 +37,6 @@ app.layout = html.Div([
         [
             html.H2("Fueguito 🔥", className="display-8"),
             html.Hr(),
-            html.P(
-                "A simple sidebar layout with navigation links", className="lead"
-            ),
             # TODO poner para que sea con las comunidades y despues provincias
             dcc.Dropdown(['Murcia', 'Huelva', 'Sevilla', 'Lugo',
                           'La Rioja', 'Badajoz'], 'Huelva', id="provincia-dropdown"),
@@ -47,12 +44,52 @@ app.layout = html.Div([
         style=SIDEBAR_STYLE,
     ),
     html.Div([
-        dbc.Row(
-            [
-                dbc.Col(dcc.Graph(id='provincia-map')),
+        dbc.Row([
+                dbc.Col([
+                    dbc.Row([
+                            dbc.Card(
+                                [
+                                    dbc.CardBody(
+                                        [
+                                            html.H4("Número de incendios",
+                                                    className="card-title"),
+                                            html.P(
+                                                className="card-text", id="card-num-incendios"
+                                            ),
+                                        ]
+                                    ),
+                                ],
+                                style={"width": "18rem"},
+                            ),
+                            dbc.Card(
+                                [
+                                    dbc.CardBody(
+                                        [
+                                            html.H4("Superficie quemada",
+                                                    className="card-title"),
+                                            html.P(
+                                                className="card-text", id="card-num-area"
+                                            ),
+                                        ]
+                                    ),
+                                ],
+                                style={"width": "18rem"},
+                            ),
+                            ]),
+
+                    dbc.Card(
+                        [
+                            dbc.CardBody(
+                                [
+                                    dcc.Graph(id='provincia-map'),
+                                ]
+                            ),
+                        ],
+                    ),
+                ]),
                 dbc.Col(dcc.Graph(id='usos-donut')),
-            ]
-        ),
+                ]
+                ),
     ], style=CONTENT_STYLE)
 ])
 
@@ -61,21 +98,22 @@ app.layout = html.Div([
     Output('provincia-map', 'figure'),
     Input('provincia-dropdown', 'value'))
 def update_map(provincia):
-    gdf, geojson = spq.get_fire_area_provincia(
+    gdf, geojson = spq.get_fire_geometry(
         engine, "2013-01-01", "2018-01-01", provincia)
 
     fig = px.choropleth_mapbox(gdf,
                                geojson=geojson,
-                               locations='ADM2_NAME',
-                               featureidkey='properties.ADM2_NAME',
-                               color='area_incendios',
+                               locations='id',
+                               featureidkey='properties.id',
+                               color='area_incendio',
                                mapbox_style='carto-positron',
                                color_continuous_scale="Viridis",
                                center={'lat': 40, 'lon': -3},
                                opacity=0.5,
                                zoom=4)
 
-    fig.update_layout(transition_duration=500)
+    fig.update_layout(transition_duration=500,
+                      margin=dict(t=0, b=0, l=0, r=0))
 
     return fig
 
@@ -147,6 +185,7 @@ def update_usos_suelo_chart(provincia):
     values = usos.loc[0, :].values
 
     # Use `hole` to create a donut-like pie chart
+    # TODO no usar un pie chart porque hay muchos valores
     fig = go.Figure(
         data=[go.Pie(labels=labels, values=values, hole=.3)])
     # hace que la info se muestre dentro del sector
@@ -158,6 +197,38 @@ def update_usos_suelo_chart(provincia):
                       margin=dict(t=0, b=0, l=0, r=0))
 
     return fig
+
+
+@app.callback(
+    Output('card-num-incendios', 'children'),
+    Input('provincia-dropdown', 'value'))
+def update_numero_incendios(provincia):
+    gdf, geojson = spq.get_fire_area_provincia(
+        engine, "2013-01-01", "2018-01-01", provincia)
+
+    # elimina las columnas con valor 0
+    gdf = gdf.loc[:, (gdf != 0).any(axis=0)]
+
+    # Coge el valor de numero de incendios
+    num = gdf.loc[:, ["numero_incendios"]].values[0][0]
+
+    return num
+
+
+@app.callback(
+    Output('card-num-area', 'children'),
+    Input('provincia-dropdown', 'value'))
+def update_area_quemada(provincia):
+    gdf, geojson = spq.get_fire_area_provincia(
+        engine, "2013-01-01", "2018-01-01", provincia)
+
+    # elimina las columnas con valor 0
+    gdf = gdf.loc[:, (gdf != 0).any(axis=0)]
+
+    # Coge el valor de numero de incendios
+    num = gdf.loc[:, ["area_incendios"]].values[0][0]
+
+    return num
 
 
 if __name__ == "__main__":
@@ -193,3 +264,19 @@ app.layout = html.Div(
 
 # Conexion a la BD
 engine = create_engine("postgresql://postgres:admin@localhost:5432/fire")
+
+
+def update_usos_suelo_chart(provincia):
+    gdf, geojson = spq.get_fire_area_provincia(
+        engine, "2013-01-01", "2018-01-01", provincia)
+
+    # elimina las columnas con valor 0
+    gdf = gdf.loc[:, (gdf != 0).any(axis=0)]
+
+    # selecciona solo las columnas de uso de suelo
+    num = gdf.loc[:, ["numero_incendios"]].values[0][0]
+
+    return num
+
+
+print(update_usos_suelo_chart("Huelva"))
