@@ -150,3 +150,21 @@ def get_fire_geometry(engine, idate, fdate, provincia):
     """
 
     return get_query(engine, query)
+
+
+def get_numero_incendios(engine, idate, fdate, provincia):
+    ''' Devuelve el numero de incendios en el rango y geometri indicada '''
+
+    query = f"""
+    select 
+        COUNT(A.id) as numero_incendios,
+    from 
+        provincias B,
+        incendios A
+    where
+        ST_Intersects(A.geometry, B.geometry) and
+        A.idate_string between '{idate}' and '{fdate}' and
+        B."ADM2_NAME" like '{provincia}'
+    """
+
+    return get_query(engine, query)
