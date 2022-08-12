@@ -14,18 +14,46 @@ ee.Initialize()
 # llama al tipo de BD, usuario@contrasena/direccionBD/nombreBD
 engine = create_engine("postgresql://postgres:admin@localhost:5432/fire")
 
+
+def load_comunidades_postgis() -> None:
+    '''Carga las comunidades autonomas en la BD'''
+    comunidades = ee.FeatureCollection("FAO/GAUL/2015/level1") \
+        .filter(ee.Filter.eq("ADM0_CODE", 229))
+
+    provincias = ee.FeatureCollection("FAO/GAUL/2015/level2") \
+        .filter(ee.Filter.eq("ADM0_CODE", 229))
+
+    com_df = geemap.ee_to_geopandas(comunidades)
+    pro_df = geemap.ee_to_geopandas(provincias)
+
+    # para quitar los simbolos raros
+    pro_names = pro_df.loc[:, ["ADM1_NAME", "ADM1_CODE"]].drop_duplicates()
+
+    # pasa a minusculas para que postgis no de problemas
+    com_df.columns = [s.lower() for s in com_df.columns]
+    pro_names.columns = [s.lower() for s in pro_names.columns]
+
+    com_df = com_df.merge(pro_names, on="adm1_code") \
+                   .loc[:, ["adm1_name_y", "geometry"]] \
+                   .rename(columns={"adm1_name_y": "name"}) \
+                   .set_crs(4326)
+
+    # si ya existe solo inserta los valores nuevos
+    com_df.to_postgis("comunidades", engine,
+                      if_exists="append", chunksize=10000)
+
 # ---------------------------------------------------------------------------
 # Limitar la zona de extraccion de datos. Para españa en principio
 
 
 def load_counties_postgis() -> None:
     country = ee.FeatureCollection("FAO/GAUL/2015/level2") \
-                .filter(ee.Filter.eq("ADM0_CODE", 229))
+        .filter(ee.Filter.eq("ADM0_CODE", 229))
 
     country_df = geemap.ee_to_geopandas(country)
     # se asigna el crs por defecto WGS84
-    adm2 = country_df.loc[:, ["ADM1_NAME",
-                              "ADM2_NAME", "geometry"]].set_crs(4326)
+    adm2 = country_df.loc[:, ["ADM1_NAME", "geometry"]].set_crs(4326)
+
     # si ya existe solo inserta los valores nuevos
     adm2.to_postgis("provincias", engine, if_exists="append", chunksize=10000)
 
@@ -36,7 +64,7 @@ def load_final_perimeter_postgis() -> None:
     ''' Carga los perimetros finales de incendios desde 2000 a 2020 '''
     # cargar la capa de españa
     espana = ee.FeatureCollection("FAO/GAUL/2015/level2") \
-               .filter(ee.Filter.eq("ADM0_CODE", 229))
+        .filter(ee.Filter.eq("ADM0_CODE", 229))
 
     andalucia = espana.filter(
         ee.Filter.stringStartsWith("ADM1_NAME", "Andaluc"))
@@ -47,7 +75,7 @@ def load_final_perimeter_postgis() -> None:
 
     # recoger datos de incendios solo dentro de españa
     fire = ee.FeatureCollection("JRC/GWIS/GlobFire/v2/FinalPerimeters") \
-             .filterBounds(andalucia)
+        .filterBounds(andalucia)
 
     # CRS WGS84 que es el que carga GEE
     gdf = geemap.ee_to_geopandas(fire).set_crs("4326")
@@ -133,7 +161,7 @@ def load_fire_file() -> None:
     # -- eliminar columnas que no van a postgis
     # -- cambiar a wgs84 antes de subirlas
     gdf = gdf.drop(columns=["sev_area", "sev_check",
-                   "viento_direccion_bruta"]).to_crs("EPSG:4326")
+                            "viento_direccion_bruta"]).to_crs("EPSG:4326")
     print(gdf.info())
 
     # gdf.to_postgis("incendios", engine, if_exists="append", chunksize=10000)
@@ -187,8 +215,9 @@ def load_fire_file() -> None:
 
 # ---------------------------------------------------------------------------
 # EJECUCION
+load_comunidades_postgis()
 # load_counties_postgis()
 # load_fired_postgis()
 # insert_firecci_potgis()
 # load_final_perimeter_postgis()
-load_fire_file()
+# load_fire_file()
