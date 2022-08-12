@@ -3,6 +3,7 @@ import plotly.graph_objects as go
 
 from dash import Dash, dcc, html, Input, Output
 import dash_bootstrap_components as dbc
+from datetime import date
 from sqlalchemy import create_engine
 
 import spquery as spq
@@ -85,9 +86,17 @@ app.layout = html.Div([
         [
             html.H2("Fueguito 🔥", className="display-8"),
             html.Hr(),
+            dcc.DatePickerRange(
+                id=id.DATE_PICKER,
+                min_date_allowed=date(2013, 1, 1),
+                max_date_allowed=date(2020, 12, 31),
+                # initial_visible_month=date(2017, 8, 5),
+                # end_date=date(2017, 8, 25)
+            ),
+            html.Hr(),
             # TODO poner para que sea con las comunidades y despues provincias
             dcc.Dropdown(['Murcia', 'Huelva', 'Sevilla', 'Lugo',
-                          'La Rioja', 'Badajoz'], 'Huelva', id="provincia-dropdown"),
+                          'La Rioja', 'Badajoz'], 'Huelva', id=id.PROVINCIA_MENU),
         ],
         style=SIDEBAR_STYLE,
     ),
@@ -101,7 +110,7 @@ app.layout = html.Div([
                     dbc.Col([cp.draw_area_incendios()])
                 ]),
                 html.Br(),
-                dbc.Row([draw_figure(500)])
+                # dbc.Row([cp.draw_mapa_incendios()])
             ], width=6),
             dbc.Col([
                 dbc.Row([draw_figure(270)]),
@@ -192,10 +201,12 @@ engine = create_engine("postgresql://postgres:admin@localhost:5432/fire")
 
 @app.callback(
     Output(id.NUMERO_INCENDIOS, 'children'),
-    Input('provincia-dropdown', 'value'))
-def update_numero_incendios(provincia):
+    Input(id.PROVINCIA_MENU, 'value'),
+    Input(id.DATE_PICKER, 'start_date'),
+    Input(id.DATE_PICKER, 'end_date'))
+def update_numero_incendios(provincia, idate, fdate):
     gdf, geojson = spq.get_fire_area_provincia(
-        engine, "2013-01-01", "2018-01-01", provincia)
+        engine, idate, fdate, provincia)
 
     # elimina las columnas con valor 0
     gdf = gdf.loc[:, (gdf != 0).any(axis=0)]
@@ -208,10 +219,12 @@ def update_numero_incendios(provincia):
 
 @app.callback(
     Output(id.AREA_INCENDIOS, 'children'),
-    Input('provincia-dropdown', 'value'))
-def update_area_quemada(provincia):
+    Input(id.PROVINCIA_MENU, 'value'),
+    Input(id.DATE_PICKER, 'start_date'),
+    Input(id.DATE_PICKER, 'end_date'))
+def update_area_quemada(provincia, idate, fdate):
     gdf, geojson = spq.get_fire_area_provincia(
-        engine, "2013-01-01", "2018-01-01", provincia)
+        engine, idate, fdate, provincia)
 
     # elimina las columnas con valor 0
     gdf = gdf.loc[:, (gdf != 0).any(axis=0)]
@@ -223,9 +236,9 @@ def update_area_quemada(provincia):
 
 
 @app.callback(
-    Output('provincia-map', 'figure'),
+    Output(id.MAPA_INCENDIOS, 'figure'),
     Input('provincia-dropdown', 'value'))
-def update_map(provincia):
+def update_bubble_map_incendios(provincia):
     gdf, geojson = spq.get_fire_geometry(
         engine, "2013-01-01", "2018-01-01", provincia)
 

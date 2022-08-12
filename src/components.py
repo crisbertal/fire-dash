@@ -38,3 +38,14 @@ def draw_area_incendios():
             ])
         ),
     ])
+
+
+def draw_mapa_incendios():
+    ''' muestra el mapa con los incendios '''
+    return html.Div([
+        dbc.Card(
+            dbc.CardBody([
+                dcc.Graph(id=id.MAPA_INCENDIOS)
+            ])
+        ),
+    ])
