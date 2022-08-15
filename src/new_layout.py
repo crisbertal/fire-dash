@@ -1,4 +1,5 @@
-import geopandas as gpd
+from datetime import datetime
+
 import pandas as pd
 import plotly.express as px
 from dash import Dash, dcc, html
@@ -74,6 +75,39 @@ def process_landcover(data):
     return coverdf
 
 
+df = px.data.gapminder().query("year==2007")
+
+fig = px.scatter_geo(df, locations="iso_alpha", color="continent",
+                     hover_name="country", size="pop",
+                     projection="natural earth")
+
+
+def process_bubblemap_data():
+    data, geojson = spq.get_bubblemap_data(engine,
+                                           "2013-01-01",
+                                           "2020-12-31",
+                                           "Andalucía")
+
+    # calcular la severidad media con la severidad moderada en procentaje
+    # con respecto al total quemado
+
+    data['sev_perc_moderate'] = pd.Series(data['sev_moderateseverity'] /
+                                          data['area_incendio'] * 100).astype(int)
+
+    data['sev_perc_high'] = pd.Series(data['sev_highseverity'] /
+                                      data['area_incendio'] * 100).astype(int)
+
+    data["fecha_inicio"] = data["IDate"].map(
+        lambda x: datetime.fromtimestamp(x/1000 + 2).strftime("%d/%m/%Y"))
+
+    data["area_incendio"] = data["area_incendio"].astype(int)
+
+    return (data, geojson)
+
+
+bubbledata, geobubble = process_bubblemap_data()
+
+
 # ----------------------------------------------------------------------------
 # LAYOUT
 # ----------------------------------------------------------------------------
@@ -86,6 +120,7 @@ app.layout = html.Div(
                 process_severity(data),
                 names='labels',
                 values='values',
+                hole=0.3,
                 title="Superficie clasificada por severidad del incendio"
             ),
         ),
@@ -95,6 +130,25 @@ app.layout = html.Div(
                 path=['group1', 'group2', 'group3'],
                 values='area',
                 title='Superficie quemada clasificada por CLC'
+            )
+        ),
+        dcc.Graph(
+            figure=px.scatter_geo(
+                bubbledata,
+                geojson=geobubble,
+                locations='id',
+                featureidkey='properties.id',
+                color="sev_perc_high",
+                size="area_incendio",
+                hover_data=["sev_perc_moderate", "fecha_inicio"],
+                labels={
+                    "area_incendio": "Area quemada en ha",
+                    "sev_perc_high": "Porcentaje de area quemada con alta severidad",
+                    "sev_perc_moderate": "Porcentaje de area quemada con severidad media",
+                    "fecha_inicio": "Fecha de la primera detección del incendio",
+                },
+                title="Ubicacion de los incendios",
+                fitbounds='geojson',
             )
         )
     ]
