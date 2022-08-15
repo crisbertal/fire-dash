@@ -1,8 +1,9 @@
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
-from dash import Dash, dcc, html
+from dash import Dash, Input, Output, dcc, html
 from sqlalchemy import create_engine
 
 import spquery as spq
@@ -22,6 +23,9 @@ climate_data = spq.get_climate_data(engine,
                                     ifecha,
                                     ffecha,
                                     comunidad)[0]
+
+comunidades = spq.get_comunidades(engine)
+incendios = spq.get_incendios(engine)
 
 
 def process_severity(data):
@@ -81,7 +85,7 @@ def process_landcover(data):
     return coverdf
 
 
-def process_bubblemap_data():
+def process_bubblemap_data(engine, ifecha, ffecha, comunidad):
     data, geojson = spq.get_bubblemap_data(engine,
                                            ifecha,
                                            ffecha,
@@ -105,8 +109,8 @@ def process_bubblemap_data():
     return (data, geojson)
 
 
-bubbledata, geobubble = process_bubblemap_data()
-
+bubbledata, geobubble = process_bubblemap_data(
+    engine, ifecha, ffecha, comunidad)
 
 # ----------------------------------------------------------------------------
 # LAYOUT
@@ -132,27 +136,54 @@ app.layout = html.Div(
         html.Div(
             children=[
                 html.Div(
-                    children=dcc.Graph(
-                        figure=px.pie(
-                            process_severity(data),
-                            names='labels',
-                            values='values',
-                            hole=0.3,
-                            title="Superficie clasificada por severidad del incendio",
+                    children=[
+                        html.Div(children="Comunidad", className="menu-title"),
+                        dcc.Dropdown(
+                            id="comunidad-filter",
+                            options=[
+                                {"label": comunidad, "value": comunidad}
+                                for comunidad in np.sort(comunidades.name)
+                            ],
+                            value="Andalucía",
+                            clearable=False,
+                            className="dropdown",
                         ),
+                    ]
+                ),
+                html.Div(
+                    children=[
+                        html.Div(
+                            children="Rango de fechas",
+                            className="menu-title"
+                        ),
+                        dcc.DatePickerRange(
+                            id="date-range",
+                            min_date_allowed=datetime.fromtimestamp(
+                                incendios.IDate.min()/1000),
+                            max_date_allowed=datetime.fromtimestamp(
+                                incendios.FDate.max()/1000),
+                            start_date=datetime.fromtimestamp(
+                                incendios.IDate.min()/1000),
+                            end_date=datetime.fromtimestamp(
+                                incendios.FDate.max()/1000),
+                        ),
+                    ]
+                ),
+            ],
+            className="menu",
+        ),
+        html.Div(
+            children=[
+                html.Div(
+                    children=dcc.Graph(
+                        id="pie-severity",
                     ),
                     className="card",
                 ),
                 html.Div(
                     children=[
                         dcc.Graph(
-                            figure=px.sunburst(
-                                process_landcover(data),
-                                path=[
-                                    'group1', 'group2', 'group3'],
-                                values='area',
-                                title='Superficie quemada clasificada por CLC'
-                            )
+                            id="sunburst-landcover",
                         ),
                     ],
                     className="card",
@@ -161,48 +192,14 @@ app.layout = html.Div(
                     children=[
 
                         dcc.Graph(
-                            figure=px.scatter_geo(
-                                bubbledata,
-                                geojson=geobubble,
-                                locations='id',
-                                featureidkey='properties.id',
-                                color="sev_perc_high",
-                                size="area_incendio",
-                                hover_data={
-                                    "id": False,
-                                    "area_incendio": True,
-                                    "sev_perc_high": True,
-                                    "sev_perc_moderate": True,
-                                    "fecha_inicio": True,
-                                },
-                                labels={
-                                    "area_incendio": "Area quemada en ha",
-                                    "sev_perc_high": "Porcentaje de area quemada con alta severidad",
-                                    "sev_perc_moderate": "Porcentaje de area quemada con severidad media",
-                                    "fecha_inicio": "Fecha de la primera detección del incendio",
-                                },
-                                title="Ubicacion de los incendios",
-                                fitbounds='geojson',
-                            )
+                            id="bubblemap-incendios",
                         ),
                     ], className="card",
                 ),
                 html.Div(
                     children=[
                         dcc.Graph(
-                            figure=px.scatter_matrix(
-                                climate_data,
-                                dimensions=[
-                                    "clima_temp_media",
-                                    "clima_temp_max",
-                                    "clima_temp_min",
-                                    "area_incendio",
-                                    "viento_velocidad"
-                                ],
-                                title="Correlación de variables",
-                                # ocupa todo el ancho por defecto
-                                height=800,
-                            )
+                            id="scatter-clima"
                         )
                     ], className="card",
                 )
@@ -211,6 +208,100 @@ app.layout = html.Div(
         ),
     ],
 )
+
+
+@app.callback(
+    [
+        Output('pie-severity', 'figure'),
+        Output('sunburst-landcover', 'figure'),
+        Output('bubblemap-incendios', 'figure'),
+        Output('scatter-clima', 'figure')
+    ],
+    [
+        Input('comunidad-filter', 'value'),
+        Input('date-range', 'start_date'),
+        Input('date-range', 'end_date')
+    ]
+)
+def update_landcover(comunidad, idate, fdate):
+    comunidad = comunidad
+    ifecha, ffecha = idate, fdate
+
+    print(comunidad)
+    print(ifecha, ffecha)
+
+    # queries
+    data, geojson = spq.get_fire_area_comunidad(engine,
+                                                ifecha,
+                                                ffecha,
+                                                comunidad)
+
+    print(data)
+
+    climate_data = spq.get_climate_data(engine,
+                                        ifecha,
+                                        ffecha,
+                                        comunidad)[0]
+
+    bubbledata, geobubble = process_bubblemap_data(
+        engine, ifecha, ffecha, comunidad)
+
+    # figures
+    pie_chart = px.pie(process_severity(data),
+                       names='labels',
+                       values='values',
+                       hole=0.3,
+                       title="Superficie clasificada por severidad del incendio",
+                       )
+
+    sunburst_chart = px.sunburst(
+        process_landcover(data),
+        path=[
+            'group1', 'group2', 'group3'],
+        values='area',
+        title='Superficie quemada clasificada por CLC'
+    )
+
+    bubblemap_chart = px.scatter_geo(
+        bubbledata,
+        geojson=geobubble,
+        locations='id',
+        featureidkey='properties.id',
+        color="sev_perc_high",
+        size="area_incendio",
+        hover_data={
+            "id": False,
+            "area_incendio": True,
+            "sev_perc_high": True,
+            "sev_perc_moderate": True,
+            "fecha_inicio": True,
+        },
+        labels={
+            "area_incendio": "Area quemada en ha",
+            "sev_perc_high": "Porcentaje de area quemada con alta severidad",
+            "sev_perc_moderate": "Porcentaje de area quemada con severidad media",
+            "fecha_inicio": "Fecha de la primera detección del incendio",
+        },
+        title="Ubicacion de los incendios",
+        fitbounds='geojson',
+    )
+
+    clima_scatter = px.scatter_matrix(
+        climate_data,
+        dimensions=[
+            "clima_temp_media",
+            "clima_temp_max",
+            "clima_temp_min",
+            "area_incendio",
+            "viento_velocidad"
+        ],
+        title="Correlación de variables",
+        # ocupa todo el ancho por defecto
+        height=800,
+    )
+
+    return pie_chart, sunburst_chart, bubblemap_chart, clima_scatter
+
 
 if __name__ == "__main__":
     app.run_server(debug=True)

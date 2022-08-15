@@ -307,3 +307,13 @@ def get_climate_data(engine, idate, fdate, comunidad):
     """
 
     return get_query(engine, query)
+
+
+def get_comunidades(engine):
+    query = "select * from comunidades"
+    return gpd.GeoDataFrame.from_postgis(query, engine, geom_col="geometry")
+
+
+def get_incendios(engine):
+    query = "select * from incendios"
+    return gpd.GeoDataFrame.from_postgis(query, engine, geom_col="geometry")
