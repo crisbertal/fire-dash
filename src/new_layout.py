@@ -12,10 +12,16 @@ import utils
 # DATA
 # ----------------------------------------------------------------------------
 engine = create_engine("postgresql://postgres:admin@localhost:5432/fire")
+comunidad = "Galicia"
+ifecha, ffecha = "2013-01-01", "2020-12-31"
 data, geojson = spq.get_fire_area_comunidad(engine,
-                                            "2013-01-01",
-                                            "2020-12-31",
-                                            "Andalucía")
+                                            ifecha,
+                                            ffecha,
+                                            comunidad)
+climate_data = spq.get_climate_data(engine,
+                                    ifecha,
+                                    ffecha,
+                                    comunidad)[0]
 
 
 def process_severity(data):
@@ -84,9 +90,9 @@ fig = px.scatter_geo(df, locations="iso_alpha", color="continent",
 
 def process_bubblemap_data():
     data, geojson = spq.get_bubblemap_data(engine,
-                                           "2013-01-01",
-                                           "2020-12-31",
-                                           "Andalucía")
+                                           ifecha,
+                                           ffecha,
+                                           comunidad)
 
     # calcular la severidad media con la severidad moderada en procentaje
     # con respecto al total quemado
@@ -100,6 +106,7 @@ def process_bubblemap_data():
     data["fecha_inicio"] = data["IDate"].map(
         lambda x: datetime.fromtimestamp(x/1000 + 2).strftime("%d/%m/%Y"))
 
+    # transformar los valores a enteros para que sea mas legible
     data["area_incendio"] = data["area_incendio"].astype(int)
 
     return (data, geojson)
@@ -140,7 +147,13 @@ app.layout = html.Div(
                 featureidkey='properties.id',
                 color="sev_perc_high",
                 size="area_incendio",
-                hover_data=["sev_perc_moderate", "fecha_inicio"],
+                hover_data={
+                    "id": False,
+                    "area_incendio": True,
+                    "sev_perc_high": True,
+                    "sev_perc_moderate": True,
+                    "fecha_inicio": True,
+                },
                 labels={
                     "area_incendio": "Area quemada en ha",
                     "sev_perc_high": "Porcentaje de area quemada con alta severidad",
@@ -149,6 +162,19 @@ app.layout = html.Div(
                 },
                 title="Ubicacion de los incendios",
                 fitbounds='geojson',
+            )
+        ),
+        dcc.Graph(
+            figure=px.scatter_matrix(
+                climate_data,
+                dimensions=[
+                    "clima_temp_media",
+                    "clima_temp_max",
+                    "clima_temp_min",
+                    "area_incendio",
+                    "viento_velocidad"
+                ],
+                title="Correlación de variables",
             )
         )
     ]

@@ -155,7 +155,7 @@ def get_fire_geometry(engine, idate, fdate, provincia):
 
 
 def get_numero_incendios(engine, idate, fdate, provincia):
-    ''' Devuelve el numero de incendios en el rango y geometri indicada '''
+    ''' Devuelve el numero de incendios en el rango y geometria indicada '''
 
     query = f"""
     select 
@@ -273,6 +273,30 @@ def get_bubblemap_data(engine, idate, fdate, comunidad):
         A.sev_moderateseverity,
         A.sev_regrowth,
         A.sev_unburned
+    from 
+        comunidades B,
+        incendios A
+    where
+        ST_Intersects(A.geometry, B.geometry) and
+        A.idate_string between '{idate}' and '{fdate}' and
+        B.name like '{comunidad}'
+    """
+
+    return get_query(engine, query)
+
+
+def get_climate_data(engine, idate, fdate, comunidad):
+    query = f"""
+    select 
+        A.id,
+        A.perim_area as area_incendio,
+        A.geometry,
+        A.viento_velocidad,
+        A.viento_direccion,
+        A.clima_hum_suelo,
+        clima_temp_max,
+        clima_temp_media,
+        clima_temp_min
     from 
         comunidades B,
         incendios A
