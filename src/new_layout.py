@@ -81,13 +81,6 @@ def process_landcover(data):
     return coverdf
 
 
-df = px.data.gapminder().query("year==2007")
-
-fig = px.scatter_geo(df, locations="iso_alpha", color="continent",
-                     hover_name="country", size="pop",
-                     projection="natural earth")
-
-
 def process_bubblemap_data():
     data, geojson = spq.get_bubblemap_data(engine,
                                            ifecha,
@@ -118,66 +111,105 @@ bubbledata, geobubble = process_bubblemap_data()
 # ----------------------------------------------------------------------------
 # LAYOUT
 # ----------------------------------------------------------------------------
-app = Dash(__name__)
+external_stylesheets = [
+    {
+        "href": "https://fonts.googleapis.com/css2?"
+                "family=Lato:wght@400;700&display=swap",
+        "rel": "stylesheet",
+    },
+]
+
+app = Dash(__name__, external_stylesheets=external_stylesheets)
 app.layout = html.Div(
     children=[
-        html.H1(children="Analítica de incendios",),
-        dcc.Graph(
-            figure=px.pie(
-                process_severity(data),
-                names='labels',
-                values='values',
-                hole=0.3,
-                title="Superficie clasificada por severidad del incendio"
-            ),
+        html.Div(
+            children=[
+                html.H1(children="Analítica de incendios",
+                        className="header-title"),
+            ],
+            className="header",
         ),
-        dcc.Graph(
-            figure=px.sunburst(
-                process_landcover(data),
-                path=['group1', 'group2', 'group3'],
-                values='area',
-                title='Superficie quemada clasificada por CLC'
-            )
+        html.Div(
+            children=[
+                html.Div(
+                    children=dcc.Graph(
+                        figure=px.pie(
+                            process_severity(data),
+                            names='labels',
+                            values='values',
+                            hole=0.3,
+                            title="Superficie clasificada por severidad del incendio",
+                        ),
+                    ),
+                    className="card",
+                ),
+                html.Div(
+                    children=[
+                        dcc.Graph(
+                            figure=px.sunburst(
+                                process_landcover(data),
+                                path=[
+                                    'group1', 'group2', 'group3'],
+                                values='area',
+                                title='Superficie quemada clasificada por CLC'
+                            )
+                        ),
+                    ],
+                    className="card",
+                ),
+                html.Div(
+                    children=[
+
+                        dcc.Graph(
+                            figure=px.scatter_geo(
+                                bubbledata,
+                                geojson=geobubble,
+                                locations='id',
+                                featureidkey='properties.id',
+                                color="sev_perc_high",
+                                size="area_incendio",
+                                hover_data={
+                                    "id": False,
+                                    "area_incendio": True,
+                                    "sev_perc_high": True,
+                                    "sev_perc_moderate": True,
+                                    "fecha_inicio": True,
+                                },
+                                labels={
+                                    "area_incendio": "Area quemada en ha",
+                                    "sev_perc_high": "Porcentaje de area quemada con alta severidad",
+                                    "sev_perc_moderate": "Porcentaje de area quemada con severidad media",
+                                    "fecha_inicio": "Fecha de la primera detección del incendio",
+                                },
+                                title="Ubicacion de los incendios",
+                                fitbounds='geojson',
+                            )
+                        ),
+                    ], className="card",
+                ),
+                html.Div(
+                    children=[
+                        dcc.Graph(
+                            figure=px.scatter_matrix(
+                                climate_data,
+                                dimensions=[
+                                    "clima_temp_media",
+                                    "clima_temp_max",
+                                    "clima_temp_min",
+                                    "area_incendio",
+                                    "viento_velocidad"
+                                ],
+                                title="Correlación de variables",
+                                # ocupa todo el ancho por defecto
+                                height=800,
+                            )
+                        )
+                    ], className="card",
+                )
+            ],
+            className="wrapper",
         ),
-        dcc.Graph(
-            figure=px.scatter_geo(
-                bubbledata,
-                geojson=geobubble,
-                locations='id',
-                featureidkey='properties.id',
-                color="sev_perc_high",
-                size="area_incendio",
-                hover_data={
-                    "id": False,
-                    "area_incendio": True,
-                    "sev_perc_high": True,
-                    "sev_perc_moderate": True,
-                    "fecha_inicio": True,
-                },
-                labels={
-                    "area_incendio": "Area quemada en ha",
-                    "sev_perc_high": "Porcentaje de area quemada con alta severidad",
-                    "sev_perc_moderate": "Porcentaje de area quemada con severidad media",
-                    "fecha_inicio": "Fecha de la primera detección del incendio",
-                },
-                title="Ubicacion de los incendios",
-                fitbounds='geojson',
-            )
-        ),
-        dcc.Graph(
-            figure=px.scatter_matrix(
-                climate_data,
-                dimensions=[
-                    "clima_temp_media",
-                    "clima_temp_max",
-                    "clima_temp_min",
-                    "area_incendio",
-                    "viento_velocidad"
-                ],
-                title="Correlación de variables",
-            )
-        )
-    ]
+    ],
 )
 
 if __name__ == "__main__":
