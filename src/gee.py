@@ -1,10 +1,9 @@
-import geemap
-import ee
-import pandas as pd
-import geopandas as gpd
 from datetime import datetime
-import numpy as np
 
+import ee
+import geemap
+import geopandas as gpd
+import numpy as np
 from sqlalchemy import create_engine
 
 # Inicio de la api de gee
@@ -99,7 +98,7 @@ def load_final_perimeter_postgis() -> None:
     gdf = gdf.drop(columns=['IDate', 'FDate', 'area'])
 
     # si ya existe la tabla solo agrega los valores nuevos
-   # gdf.to_postgis("perimetrofuego", engine, if_exists="append", chunksize=10000)
+    # gdf.to_postgis("perimetrofuego", engine, if_exists="append", chunksize=10000)
 
     print(gdf)
 
@@ -110,9 +109,12 @@ def load_fire_file() -> None:
     # gdf = gpd.read_file(
     #     "../data/database_incendios_espana.geojson").dropna().to_crs("EPSG:3035")
 
-    # por el motivo que sea en algunos casos mete una columna "mean" que no he conseguido detectar
+    # por el motivo que sea en algunos casos mete una columna "mean" que no he
+    # conseguido detectar
     gdf = gpd.read_file(
-        "../data/database_incendios.geojson").drop(columns=["mean"]).dropna().to_crs("EPSG:3035")
+        "../data/database_incendios.geojson").drop(columns=["mean"]) \
+                                             .dropna() \
+                                             .to_crs("EPSG:3035")
 
     # calcular el area directamente aqui
     gdf["perim_area"] = gdf["geometry"].area / 10000
@@ -147,16 +149,6 @@ def load_fire_file() -> None:
     gdf["viento_direccion"] = (
         gdf["viento_direccion_bruta"] + 360) % 360
 
-    # pasar las fechas a string (conservando los epoch tambien)
-    gdf["fdate_string"] = gdf["FDate"].map(
-        lambda x: datetime.fromtimestamp(x/1000 + 2))
-    gdf["idate_string"] = gdf["IDate"].map(
-        lambda x: datetime.fromtimestamp(x/1000 + 2))
-    gdf["sev_postfiredate_string"] = gdf["sev_postfiredate"].map(
-        lambda x: datetime.fromtimestamp(x/1000 + 2))
-    gdf["sev_prefiredate_string"] = gdf["sev_prefiredate"].map(
-        lambda x: datetime.fromtimestamp(x/1000 + 2))
-
     # subir a postgis
     # -- eliminar columnas que no van a postgis
     # -- cambiar a wgs84 antes de subirlas
@@ -164,7 +156,7 @@ def load_fire_file() -> None:
                             "viento_direccion_bruta"]).to_crs("EPSG:4326")
     print(gdf.info())
 
-    # gdf.to_postgis("incendios", engine, if_exists="append", chunksize=10000)
+    gdf.to_postgis("incendios", engine, if_exists="append", chunksize=10000)
 
     def check_areas(gdf):
         '''comprobar que las areas son correctas'''
@@ -215,9 +207,9 @@ def load_fire_file() -> None:
 
 # ---------------------------------------------------------------------------
 # EJECUCION
-load_comunidades_postgis()
+# load_comunidades_postgis()
 # load_counties_postgis()
 # load_fired_postgis()
 # insert_firecci_potgis()
 # load_final_perimeter_postgis()
-# load_fire_file()
+load_fire_file()

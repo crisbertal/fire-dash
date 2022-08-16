@@ -13,26 +13,23 @@ import utils
 # DATA
 # ----------------------------------------------------------------------------
 engine = create_engine("postgresql://postgres:admin@localhost:5432/fire")
-comunidad = "Galicia"
-ifecha, ffecha = "2013-01-01", "2020-12-31"
-data, geojson = spq.get_fire_area_comunidad(engine,
-                                            ifecha,
-                                            ffecha,
-                                            comunidad)
-climate_data = spq.get_climate_data(engine,
-                                    ifecha,
-                                    ffecha,
-                                    comunidad)[0]
 
 comunidades = spq.get_comunidades(engine)
 incendios = spq.get_incendios(engine)
 
 
 def process_severity(data):
-    seve = data.loc[:, [s for s in data.columns if s.startswith('sev')]]
-    labels = list(seve.columns)
-    values = seve.loc[0, :].values
-    return pd.DataFrame({'labels': labels, 'values': values})
+    # la suma total de ha esta 5 o 6 ha por debajo
+    vars = [
+        'sev_highseverity',
+        'sev_lowseverity',
+        'sev_moderateseverity',
+        'sev_regrowth',
+        'sev_unburned'
+    ]
+
+    seve = data.loc[:, [s for s in vars]].sum()
+    return pd.DataFrame({'labels': seve.index, 'values': seve.values})
 
 
 def get_landcover_group1(value):
@@ -108,9 +105,6 @@ def process_bubblemap_data(engine, ifecha, ffecha, comunidad):
 
     return (data, geojson)
 
-
-bubbledata, geobubble = process_bubblemap_data(
-    engine, ifecha, ffecha, comunidad)
 
 # ----------------------------------------------------------------------------
 # LAYOUT
@@ -211,45 +205,35 @@ app.layout = html.Div(
 
 
 @app.callback(
-    [
-        Output('pie-severity', 'figure'),
-        Output('sunburst-landcover', 'figure'),
-        Output('bubblemap-incendios', 'figure'),
-        Output('scatter-clima', 'figure')
-    ],
+    Output('pie-severity', 'figure'),
     [
         Input('comunidad-filter', 'value'),
         Input('date-range', 'start_date'),
         Input('date-range', 'end_date'),
-        Input('scatter-clima', 'selectedData')
     ]
 )
-def update_landcover(comunidad, idate, fdate, clima_selected):
+def update_landcover(comunidad, idate, fdate):
     comunidad = comunidad
     ifecha, ffecha = idate, fdate
 
-    # queries
-    data, geojson = spq.get_fire_area_comunidad(engine,
-                                                ifecha,
-                                                ffecha,
-                                                comunidad)
-
-    climate_data = spq.get_climate_data(engine,
-                                        ifecha,
-                                        ffecha,
-                                        comunidad)[0]
-
-    bubbledata, geobubble = process_bubblemap_data(
-        engine, ifecha, ffecha, comunidad)
+    # datos totales obtenidos de la bd
+    data, geojson = spq.get_incendios_comunidad(
+        engine,
+        ifecha,
+        ffecha,
+        comunidad
+    )
 
     # figures
-    pie_chart = px.pie(process_severity(data),
-                       names='labels',
-                       values='values',
-                       hole=0.3,
-                       title="Superficie clasificada por severidad del incendio",
-                       )
+    pie_chart = px.pie(
+        process_severity(data),
+        names='labels',
+        values='values',
+        hole=0.3,
+        title="Superficie clasificada por severidad del incendio",
+    )
 
+    '''
     sunburst_chart = px.sunburst(
         process_landcover(data),
         path=[
@@ -261,6 +245,14 @@ def update_landcover(comunidad, idate, fdate, clima_selected):
     if clima_selected:
         points = [punto['pointIndex'] for punto in clima_selected['points']]
         bubbledata = bubbledata.loc[points, :]
+
+    # if bubble_selected:
+    #     points = [punto['pointIndex'] for punto in bubble_selected['points']]
+    #     print(points)
+    #     climate_data = climate_data.loc[points, :]
+
+    # for selected_data in [bubble_selected, clima_selected]:
+    #     if selected_data and selected_data['points']:
 
     bubblemap_chart = px.scatter_geo(
         bubbledata,
@@ -292,6 +284,7 @@ def update_landcover(comunidad, idate, fdate, clima_selected):
             "clima_temp_media",
             "clima_temp_max",
             "clima_temp_min",
+    values = seve.loc[0, :].values
             "area_incendio",
             "viento_velocidad"
         ],
@@ -299,8 +292,10 @@ def update_landcover(comunidad, idate, fdate, clima_selected):
         # ocupa todo el ancho por defecto
         height=800,
     )
+    '''
 
-    return pie_chart, sunburst_chart, bubblemap_chart, clima_scatter
+    # return pie_chart, sunburst_chart, bubblemap_chart, clima_scatter
+    return pie_chart
 
 
 if __name__ == "__main__":
