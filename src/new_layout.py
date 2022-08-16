@@ -220,23 +220,19 @@ app.layout = html.Div(
     [
         Input('comunidad-filter', 'value'),
         Input('date-range', 'start_date'),
-        Input('date-range', 'end_date')
+        Input('date-range', 'end_date'),
+        Input('scatter-clima', 'selectedData')
     ]
 )
-def update_landcover(comunidad, idate, fdate):
+def update_landcover(comunidad, idate, fdate, clima_selected):
     comunidad = comunidad
     ifecha, ffecha = idate, fdate
-
-    print(comunidad)
-    print(ifecha, ffecha)
 
     # queries
     data, geojson = spq.get_fire_area_comunidad(engine,
                                                 ifecha,
                                                 ffecha,
                                                 comunidad)
-
-    print(data)
 
     climate_data = spq.get_climate_data(engine,
                                         ifecha,
@@ -261,6 +257,10 @@ def update_landcover(comunidad, idate, fdate):
         values='area',
         title='Superficie quemada clasificada por CLC'
     )
+
+    if clima_selected:
+        points = [punto['pointIndex'] for punto in clima_selected['points']]
+        bubbledata = bubbledata.loc[points, :]
 
     bubblemap_chart = px.scatter_geo(
         bubbledata,
