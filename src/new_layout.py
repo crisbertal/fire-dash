@@ -37,8 +37,57 @@ def process_severity(data):
     }
 
     seve = data.rename(columns=names).loc[:, [s for s in vars]].sum()
-    print(seve)
     return pd.DataFrame({'labels': seve.index, 'values': seve.values})
+
+
+def process_slope(data):
+    vars = [
+        "< 5 grados",
+        ">= 5 y < 15 grados",
+        ">= 15 y < 25 grados",
+        ">= 25 y < 35 grados",
+        ">= 35 y < 45 grados",
+        "> 45 grados",
+    ]
+
+    names = {
+        "topo_slopei": "< 5 grados",
+        "topo_slopeii": ">= 5 y < 15 grados",
+        "topo_slopeiii": ">= 15 y < 25 grados",
+        "topo_slopeiv": ">= 25 y < 35 grados",
+        "topo_slopev": ">= 35 y < 45 grados",
+        "topo_slopevi": "> 45 grados",
+    }
+
+    slope = data.rename(columns=names).loc[:, [s for s in vars]].sum()
+    return pd.DataFrame({'labels': slope.index, 'values': slope.values})
+
+
+def process_direction(data):
+    names = {
+        "topo_este": "Este",
+        "topo_noreste": "Noreste",
+        "topo_noroeste": "Noroeste",
+        "topo_norte": "Norte",
+        "topo_oeste": "Oeste",
+        "topo_sur": "Sur",
+        "topo_sureste": "Sureste",
+        "topo_suroeste": "Suroeste"
+    }
+
+    vars = [
+        "Este",
+        "Noreste",
+        "Noroeste",
+        "Norte",
+        "Oeste",
+        "Sur",
+        "Sureste",
+        "Suroeste"
+    ]
+
+    direction = data.rename(columns=names).loc[:, [s for s in vars]].sum()
+    return pd.DataFrame({'labels': direction.index, 'values': direction.values})
 
 
 def get_landcover_group1(value):
@@ -193,6 +242,18 @@ app.layout = html.Div(
                     className="card",
                 ),
                 html.Div(
+                    children=dcc.Graph(
+                        id="pie-slope",
+                    ),
+                    className="card",
+                ),
+                html.Div(
+                    children=dcc.Graph(
+                        id="pie-direction",
+                    ),
+                    className="card",
+                ),
+                html.Div(
                     children=[
                         dcc.Graph(
                             id="sunburst-landcover",
@@ -226,6 +287,8 @@ app.layout = html.Div(
         Output('numero-incendios', 'children'),
         Output('superficie-incendios', 'children'),
         Output('pie-severity', 'figure'),
+        Output('pie-slope', 'figure'),
+        Output('pie-direction', 'figure'),
         Output('sunburst-landcover', 'figure'),
         Output('bubblemap-incendios', 'figure'),
         Output('scatter-clima', 'figure'),
@@ -258,6 +321,22 @@ def update_landcover(comunidad, idate, fdate):
         values='values',
         hole=0.3,
         title="Superficie clasificada por severidad del incendio",
+    )
+
+    pie_slope = px.pie(
+        process_slope(data),
+        names='labels',
+        values='values',
+        hole=0.3,
+        title="Superficie clasificada por la pendiente de la zona quemada",
+    )
+
+    pie_direction = px.pie(
+        process_direction(data),
+        names='labels',
+        values='values',
+        hole=0.3,
+        title="Superficie clasificada la orientación de la zona quemada",
     )
 
     sunburst_chart = px.sunburst(
@@ -318,7 +397,7 @@ def update_landcover(comunidad, idate, fdate):
         height=800,
     )
 
-    return num_incendios, superficie_incendios, pie_chart, sunburst_chart, bubblemap_chart, clima_scatter
+    return num_incendios, superficie_incendios, pie_chart, pie_slope, pie_direction, sunburst_chart, bubblemap_chart, clima_scatter
 
 
 if __name__ == "__main__":
