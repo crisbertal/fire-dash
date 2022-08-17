@@ -90,28 +90,24 @@ def process_landcover(data):
     return coverdf
 
 
-def process_bubblemap_data(engine, ifecha, ffecha, comunidad):
-    data, geojson = spq.get_bubblemap_data(engine,
-                                           ifecha,
-                                           ffecha,
-                                           comunidad)
+def process_bubblemap_data(data):
 
     # calcular la severidad media con la severidad moderada en procentaje
     # con respecto al total quemado
 
     data['sev_perc_moderate'] = pd.Series(data['sev_moderateseverity'] /
-                                          data['area_incendio'] * 100).astype(int)
+                                          data['perim_area'] * 100).astype(int)
 
     data['sev_perc_high'] = pd.Series(data['sev_highseverity'] /
-                                      data['area_incendio'] * 100).astype(int)
+                                      data['perim_area'] * 100).astype(int)
 
     data["fecha_inicio"] = data["IDate"].map(
         lambda x: datetime.fromtimestamp(x/1000 + 2).strftime("%d/%m/%Y"))
 
     # transformar los valores a enteros para que sea mas legible
-    data["area_incendio"] = data["area_incendio"].astype(int)
+    data["perim_area"] = data["perim_area"].astype(int)
 
-    return (data, geojson)
+    return data
 
 
 # ----------------------------------------------------------------------------
@@ -216,6 +212,8 @@ app.layout = html.Div(
     [
         Output('pie-severity', 'figure'),
         Output('sunburst-landcover', 'figure'),
+        Output('bubblemap-incendios', 'figure'),
+        Output('scatter-clima', 'figure'),
     ],
     [
         Input('comunidad-filter', 'value'),
@@ -252,10 +250,9 @@ def update_landcover(comunidad, idate, fdate):
         title='Superficie quemada clasificada por CLC'
     )
 
-    '''
-    if clima_selected:
-        points = [punto['pointIndex'] for punto in clima_selected['points']]
-        bubbledata = bubbledata.loc[points, :]
+    # if clima_selected:
+    #     points = [punto['pointIndex'] for punto in clima_selected['points']]
+    #     bubbledata = bubbledata.loc[points, :]
 
     # if bubble_selected:
     #     points = [punto['pointIndex'] for punto in bubble_selected['points']]
@@ -266,21 +263,21 @@ def update_landcover(comunidad, idate, fdate):
     #     if selected_data and selected_data['points']:
 
     bubblemap_chart = px.scatter_geo(
-        bubbledata,
-        geojson=geobubble,
+        process_bubblemap_data(data),
+        geojson=geojson,
         locations='id',
         featureidkey='properties.id',
         color="sev_perc_high",
-        size="area_incendio",
+        size="perim_area",
         hover_data={
             "id": False,
-            "area_incendio": True,
+            "perim_area": True,
             "sev_perc_high": True,
             "sev_perc_moderate": True,
             "fecha_inicio": True,
         },
         labels={
-            "area_incendio": "Area quemada en ha",
+            "perim_area": "Area quemada en ha",
             "sev_perc_high": "Porcentaje de area quemada con alta severidad",
             "sev_perc_moderate": "Porcentaje de area quemada con severidad media",
             "fecha_inicio": "Fecha de la primera detección del incendio",
@@ -290,23 +287,20 @@ def update_landcover(comunidad, idate, fdate):
     )
 
     clima_scatter = px.scatter_matrix(
-        climate_data,
+        data,
         dimensions=[
             "clima_temp_media",
             "clima_temp_max",
             "clima_temp_min",
-    values = seve.loc[0, :].values
-            "area_incendio",
+            "perim_area",
             "viento_velocidad"
         ],
         title="Correlación de variables",
         # ocupa todo el ancho por defecto
         height=800,
     )
-    '''
 
-    # return pie_chart, sunburst_chart, bubblemap_chart, clima_scatter
-    return pie_chart, sunburst_chart
+    return pie_chart, sunburst_chart, bubblemap_chart, clima_scatter
 
 
 if __name__ == "__main__":
