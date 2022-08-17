@@ -21,14 +21,23 @@ incendios = spq.get_incendios(engine)
 def process_severity(data):
     # la suma total de ha esta 5 o 6 ha por debajo
     vars = [
-        'sev_highseverity',
-        'sev_lowseverity',
-        'sev_moderateseverity',
-        'sev_regrowth',
-        'sev_unburned'
+        'Alta',
+        'Baja',
+        'Moderada',
+        'Rebrote',
+        'No quemada'
     ]
 
-    seve = data.loc[:, [s for s in vars]].sum()
+    names = {
+        'sev_highseverity': 'Alta',
+        'sev_lowseverity': 'Baja',
+        'sev_moderateseverity': 'Moderada',
+        'sev_regrowth': 'Rebrote',
+        'sev_unburned': 'No quemada'
+    }
+
+    seve = data.rename(columns=names).loc[:, [s for s in vars]].sum()
+    print(seve)
     return pd.DataFrame({'labels': seve.index, 'values': seve.values})
 
 
@@ -66,11 +75,10 @@ def get_landcover_group2(value):
 
 
 def process_landcover(data):
-    # cambiar columnas por filas
-    cover = data.loc[:, [c for c in data.columns if c.startswith('m')]]
-    labels = list(cover.columns)
-    values = cover.loc[0, :].values
-    coverdf = pd.DataFrame({'clc': labels, 'area': values})
+    # APUNTE la suma de las areas no coinciden con el area total en algunas
+    # comunidades
+    cover = data.loc[:, [c for c in data.columns if c.startswith('m')]].sum()
+    coverdf = pd.DataFrame({'clc': cover.index, 'area': cover.values})
 
     coverdf['group1'] = coverdf.loc[:, 'clc'].map(
         lambda x: get_landcover_group1(x))
@@ -205,7 +213,10 @@ app.layout = html.Div(
 
 
 @app.callback(
-    Output('pie-severity', 'figure'),
+    [
+        Output('pie-severity', 'figure'),
+        Output('sunburst-landcover', 'figure'),
+    ],
     [
         Input('comunidad-filter', 'value'),
         Input('date-range', 'start_date'),
@@ -233,7 +244,6 @@ def update_landcover(comunidad, idate, fdate):
         title="Superficie clasificada por severidad del incendio",
     )
 
-    '''
     sunburst_chart = px.sunburst(
         process_landcover(data),
         path=[
@@ -242,6 +252,7 @@ def update_landcover(comunidad, idate, fdate):
         title='Superficie quemada clasificada por CLC'
     )
 
+    '''
     if clima_selected:
         points = [punto['pointIndex'] for punto in clima_selected['points']]
         bubbledata = bubbledata.loc[points, :]
@@ -295,7 +306,7 @@ def update_landcover(comunidad, idate, fdate):
     '''
 
     # return pie_chart, sunburst_chart, bubblemap_chart, clima_scatter
-    return pie_chart
+    return pie_chart, sunburst_chart
 
 
 if __name__ == "__main__":
