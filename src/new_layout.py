@@ -90,6 +90,21 @@ def process_direction(data):
     return pd.DataFrame({'labels': direction.index, 'values': direction.values})
 
 
+def process_clc_barchart(data):
+    clc = data.loc[:, [
+        s for s in data.columns if s.startswith("m")]].sum()
+    clc_filtered = clc[clc > 1]
+    clc_description = [utils.DICT_USOS[value] for value in clc_filtered.index]
+    clc_group = [get_landcover_group1(value) for value in clc_filtered.index]
+
+    return pd.DataFrame({
+        'labels': clc_filtered.index,
+        'values': clc_filtered.values.astype(int),
+        'clc': clc_description,
+        'clc_group': clc_group,
+    })
+
+
 def get_landcover_group1(value):
     if value.startswith('m1'):
         return 'Superficies artificiales'
@@ -134,7 +149,7 @@ def process_landcover(data):
     coverdf['group2'] = coverdf.loc[:, 'clc'].map(
         lambda x: get_landcover_group2(x))
     coverdf['group3'] = coverdf.loc[:, 'clc'].map(
-        lambda x: utils.use_conversion(x))
+        lambda x: utils.DICT_USOS[x])
 
     return coverdf
 
@@ -264,6 +279,14 @@ app.layout = html.Div(
                 html.Div(
                     children=[
                         dcc.Graph(
+                            id="clc_barchart",
+                        ),
+                    ],
+                    className="card",
+                ),
+                html.Div(
+                    children=[
+                        dcc.Graph(
                             id="bubblemap-incendios",
                         ),
                     ], className="card",
@@ -290,6 +313,7 @@ app.layout = html.Div(
         Output('pie-slope', 'figure'),
         Output('pie-direction', 'figure'),
         Output('sunburst-landcover', 'figure'),
+        Output('clc_barchart', 'figure'),
         Output('bubblemap-incendios', 'figure'),
         Output('scatter-clima', 'figure'),
     ],
@@ -397,7 +421,27 @@ def update_landcover(comunidad, idate, fdate):
         height=800,
     )
 
-    return num_incendios, superficie_incendios, pie_chart, pie_slope, pie_direction, sunburst_chart, bubblemap_chart, clima_scatter
+    clc_barchart = px.bar(
+        process_clc_barchart(data),
+        x="values",
+        log_x=True,
+        y="labels",
+        color="clc_group",
+        orientation="h",
+        hover_data={
+            "labels": False,
+            "clc": True,
+            "clc_group": False
+        },
+        labels={
+            "values": "Superficie quemada",
+            "clc": "Descripción"
+        },
+        title="Usos de suelo clasificados por CLC",
+        height=1200,
+    ).update_layout(legend_title_text="Descripcion Nivel 1 CLC")
+
+    return num_incendios, superficie_incendios, pie_chart, pie_slope, pie_direction, sunburst_chart, clc_barchart, bubblemap_chart, clima_scatter
 
 
 if __name__ == "__main__":
