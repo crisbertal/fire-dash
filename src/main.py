@@ -272,7 +272,7 @@ def update_usos_suelo_chart(provincia):
     # selecciona solo las columnas de uso de suelo
     usos = gdf.loc[:, [m for m in gdf.columns if m.startswith('m')]]
 
-    labels = [use_conversion(m) for m in usos.columns]
+    labels = [utils.use_conversion(m) for m in usos.columns]
     values = usos.loc[0, :].values
 
     # Use `hole` to create a donut-like pie chart

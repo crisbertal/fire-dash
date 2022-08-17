@@ -173,6 +173,20 @@ app.layout = html.Div(
         html.Div(
             children=[
                 html.Div(
+                    children=[
+                        html.H3("Número de incendios"),
+                        html.P(id="numero-incendios")
+                    ],
+                    className="card",
+                ),
+                html.Div(
+                    children=[
+                        html.H3("Superficice total quemada"),
+                        html.P(id="superficie-incendios")
+                    ],
+                    className="card",
+                ),
+                html.Div(
                     children=dcc.Graph(
                         id="pie-severity",
                     ),
@@ -188,7 +202,6 @@ app.layout = html.Div(
                 ),
                 html.Div(
                     children=[
-
                         dcc.Graph(
                             id="bubblemap-incendios",
                         ),
@@ -210,6 +223,8 @@ app.layout = html.Div(
 
 @app.callback(
     [
+        Output('numero-incendios', 'children'),
+        Output('superficie-incendios', 'children'),
         Output('pie-severity', 'figure'),
         Output('sunburst-landcover', 'figure'),
         Output('bubblemap-incendios', 'figure'),
@@ -234,6 +249,9 @@ def update_landcover(comunidad, idate, fdate):
     )
 
     # figures
+    num_incendios = data.loc[:, ['perim_area']].count()
+    superficie_incendios = f"{int(data.loc[:, ['perim_area']].sum().values)} hectáreas"
+
     pie_chart = px.pie(
         process_severity(data),
         names='labels',
@@ -300,7 +318,7 @@ def update_landcover(comunidad, idate, fdate):
         height=800,
     )
 
-    return pie_chart, sunburst_chart, bubblemap_chart, clima_scatter
+    return num_incendios, superficie_incendios, pie_chart, sunburst_chart, bubblemap_chart, clima_scatter
 
 
 if __name__ == "__main__":
