@@ -294,6 +294,13 @@ app.layout = html.Div(
                 html.Div(
                     children=[
                         dcc.Graph(
+                            id="ubicacion-incendios",
+                        ),
+                    ], className="card",
+                ),
+                html.Div(
+                    children=[
+                        dcc.Graph(
                             id="scatter-clima"
                         )
                     ], className="card",
@@ -315,6 +322,7 @@ app.layout = html.Div(
         Output('sunburst-landcover', 'figure'),
         Output('clc_barchart', 'figure'),
         Output('bubblemap-incendios', 'figure'),
+        Output('ubicacion-incendios', 'figure'),
         Output('scatter-clima', 'figure'),
     ],
     [
@@ -407,6 +415,29 @@ def update_landcover(comunidad, idate, fdate):
         fitbounds='geojson',
     )
 
+    ubicacion_map = px.choropleth_mapbox(
+        data,
+        geojson=geojson,
+        locations='id',
+        featureidkey='properties.id',
+        hover_data={
+            "id": False,
+            "perim_area": True,
+            "fecha_inicio": True,
+        },
+        labels={
+            "perim_area": "Area quemada en ha",
+            "fecha_inicio": "Fecha de la primera detección del incendio",
+        },
+        title="Tamaño y severidad de los incendios",
+        mapbox_style='satellite',
+        center={"lat": data.dissolve().centroid.y[0],
+                "lon": data.dissolve().centroid.x[0]},
+        opacity=0.6,
+        zoom=5,
+    ).update_layout(mapbox_accesstoken="pk.eyJ1IjoibzMyYmVuYWMiLCJhIjoiY2w2eHV0ZnltMGdvMTNqcnhtOWN0b3g5biJ9.il1_9UcNLrB7-htfqGsBAw",
+                    )
+
     clima_scatter = px.scatter_matrix(
         data,
         dimensions=[
@@ -441,7 +472,7 @@ def update_landcover(comunidad, idate, fdate):
         height=1200,
     ).update_layout(legend_title_text="Descripcion Nivel 1 CLC")
 
-    return num_incendios, superficie_incendios, pie_chart, pie_slope, pie_direction, sunburst_chart, clc_barchart, bubblemap_chart, clima_scatter
+    return num_incendios, superficie_incendios, pie_chart, pie_slope, pie_direction, sunburst_chart, clc_barchart, bubblemap_chart, ubicacion_map, clima_scatter
 
 
 if __name__ == "__main__":
