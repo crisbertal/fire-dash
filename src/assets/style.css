@@ -60,6 +60,13 @@ body {
   top: 12px;
 }
 
+.card-slider {
+  padding-left: 32px;
+  padding-right: 32px;
+  position: relative;
+  bottom: 40px;
+}
+
 .menu {
     height: 112px;
     width: 912px;

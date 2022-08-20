@@ -295,16 +295,18 @@ app.layout = html.Div(
                         dcc.Graph(
                             id="ubicacion-incendios",
                         ),
+                        html.Div(
+                            children=[
+                                html.P("Nivel de zoom"),
+                                dcc.Slider(1, 13, 1, value=5, marks=None,
+                                           tooltip={"placement": "bottom",
+                                                    "always_visible": True},
+                                           id="zoom-slider"
+                                           )
+                            ], className="card-slider"
+                        )
                     ], className="card",
                 ),
-                # html.Div(
-                #     children=[
-                #         dcc.Dropdown(
-                #             [col for col in incendios.columns],
-                #             ['perim_area', 'clima_temp_media'],
-                #             multi=True, id="params-filter"),
-                #     ], className="card card-padding"
-                # ),
                 html.Div(
                     children=[
                         html.Div(
@@ -343,11 +345,12 @@ app.layout = html.Div(
     [
         Input('comunidad-filter', 'value'),
         Input('params-filter', 'value'),
+        Input('zoom-slider', 'value'),
         Input('date-range', 'start_date'),
         Input('date-range', 'end_date'),
     ]
 )
-def update_landcover(comunidad, params, idate, fdate):
+def update_landcover(comunidad, params, zoom, idate, fdate):
     comunidad = comunidad
     ifecha, ffecha = idate, fdate
 
@@ -450,7 +453,7 @@ def update_landcover(comunidad, params, idate, fdate):
         center={"lat": data.dissolve().centroid.y[0],
                 "lon": data.dissolve().centroid.x[0]},
         opacity=0.6,
-        zoom=5,
+        zoom=zoom,
     ).update_layout(mapbox_accesstoken="pk.eyJ1IjoibzMyYmVuYWMiLCJhIjoiY2w2eHV0ZnltMGdvMTNqcnhtOWN0b3g5biJ9.il1_9UcNLrB7-htfqGsBAw",
                     )
 
