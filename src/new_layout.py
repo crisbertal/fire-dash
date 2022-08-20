@@ -208,7 +208,6 @@ app.layout = html.Div(
                             ],
                             value="Andalucía",
                             clearable=False,
-                            className="dropdown",
                         ),
                     ]
                 ),
@@ -241,14 +240,14 @@ app.layout = html.Div(
                         html.H3("Número de incendios"),
                         html.P(id="numero-incendios")
                     ],
-                    className="card",
+                    className="card card-padding",
                 ),
                 html.Div(
                     children=[
                         html.H3("Superficice total quemada"),
                         html.P(id="superficie-incendios")
                     ],
-                    className="card",
+                    className="card card-padding",
                 ),
                 html.Div(
                     children=dcc.Graph(
@@ -298,12 +297,28 @@ app.layout = html.Div(
                         ),
                     ], className="card",
                 ),
+                # html.Div(
+                #     children=[
+                #         dcc.Dropdown(
+                #             [col for col in incendios.columns],
+                #             ['perim_area', 'clima_temp_media'],
+                #             multi=True, id="params-filter"),
+                #     ], className="card card-padding"
+                # ),
                 html.Div(
                     children=[
+                        html.Div(
+                            children=[
+                                dcc.Dropdown(
+                                    [col for col in incendios.columns],
+                                    ['perim_area', 'clima_temp_media'],
+                                    multi=True, id="params-filter"),
+                            ], className="card-dropdown"
+                        ),
                         dcc.Graph(
                             id="scatter-clima"
-                        )
-                    ], className="card",
+                        ),
+                    ], className="card"
                 )
             ],
             className="wrapper",
@@ -327,11 +342,12 @@ app.layout = html.Div(
     ],
     [
         Input('comunidad-filter', 'value'),
+        Input('params-filter', 'value'),
         Input('date-range', 'start_date'),
         Input('date-range', 'end_date'),
     ]
 )
-def update_landcover(comunidad, idate, fdate):
+def update_landcover(comunidad, params, idate, fdate):
     comunidad = comunidad
     ifecha, ffecha = idate, fdate
 
@@ -440,13 +456,7 @@ def update_landcover(comunidad, idate, fdate):
 
     clima_scatter = px.scatter_matrix(
         data,
-        dimensions=[
-            "clima_temp_media",
-            "clima_temp_max",
-            "clima_temp_min",
-            "perim_area",
-            "viento_velocidad"
-        ],
+        dimensions=params,
         title="Correlación de variables",
         # ocupa todo el ancho por defecto
         height=800,

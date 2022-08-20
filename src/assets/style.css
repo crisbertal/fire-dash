@@ -12,12 +12,6 @@ body {
     justify-content: center;
 }
 
-.header-emoji {
-    font-size: 48px;
-    margin: 0 auto;
-    text-align: center;
-}
-
 .header-title {
     color: #FFFFFF;
     font-size: 48px;
@@ -47,6 +41,23 @@ body {
     margin-right: 12px;
     margin-left: 12px;
     box-shadow: 0 4px 6px 0 rgba(0, 0, 0, 0.18);
+    background-color: #FFFFFF;
+}
+
+.card-padding {
+  padding-left: 18px;
+  padding-right: 18px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.card-dropdown {
+  padding-left: 24px;
+  padding-right: 24px;
+  padding-bottom: 12px;
+  padding-top: 12px;
+  position: relative;
+  top: 12px;
 }
 
 .menu {
@@ -60,17 +71,9 @@ body {
     box-shadow: 0 4px 6px 0 rgba(0, 0, 0, 0.18);
 }
 
-.Select-control {
+#comunidad-filter {
     width: 256px;
     height: 48px;
-}
-
-.Select--single > .Select-control .Select-value, .Select-placeholder {
-    line-height: 48px;
-}
-
-.Select--multi .Select-value-label {
-    line-height: 32px;
 }
 
 .menu-title {
