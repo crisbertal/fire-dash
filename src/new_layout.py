@@ -346,11 +346,13 @@ app.layout = html.Div(
         Input('comunidad-filter', 'value'),
         Input('params-filter', 'value'),
         Input('zoom-slider', 'value'),
+        Input('bubblemap-incendios', 'selectedData'),
+        Input('scatter-clima', 'selectedData'),
         Input('date-range', 'start_date'),
         Input('date-range', 'end_date'),
     ]
 )
-def update_landcover(comunidad, params, zoom, idate, fdate):
+def update_landcover(comunidad, params, zoom, selected_incendios, selected_clima, idate, fdate):
     comunidad = comunidad
     ifecha, ffecha = idate, fdate
 
@@ -361,6 +363,15 @@ def update_landcover(comunidad, params, zoom, idate, fdate):
         ffecha,
         comunidad
     )
+
+    if selected_clima:
+        points = [punto['pointIndex'] for punto in selected_clima['points']]
+        data = data.loc[points, :]
+
+    if selected_incendios:
+        points = [punto['pointIndex']
+                  for punto in selected_incendios['points']]
+        data = data.loc[points, :]
 
     # figures
     num_incendios = data.loc[:, ['perim_area']].count()
@@ -397,18 +408,6 @@ def update_landcover(comunidad, params, zoom, idate, fdate):
         values='area',
         title='Superficie quemada clasificada por CLC'
     )
-
-    # if clima_selected:
-    #     points = [punto['pointIndex'] for punto in clima_selected['points']]
-    #     bubbledata = bubbledata.loc[points, :]
-
-    # if bubble_selected:
-    #     points = [punto['pointIndex'] for punto in bubble_selected['points']]
-    #     print(points)
-    #     climate_data = climate_data.loc[points, :]
-
-    # for selected_data in [bubble_selected, clima_selected]:
-    #     if selected_data and selected_data['points']:
 
     bubblemap_chart = px.scatter_geo(
         process_bubblemap_data(data),
