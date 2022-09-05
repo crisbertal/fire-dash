@@ -90,21 +90,6 @@ def process_direction(data):
     return pd.DataFrame({'labels': direction.index, 'values': direction.values})
 
 
-def process_clc_barchart(data):
-    clc = data.loc[:, [
-        s for s in data.columns if s.startswith("m")]].sum()
-    clc_filtered = clc[clc > 1]
-    clc_description = [utils.DICT_USOS[value] for value in clc_filtered.index]
-    clc_group = [get_landcover_group1(value) for value in clc_filtered.index]
-
-    return pd.DataFrame({
-        'labels': clc_filtered.index,
-        'values': clc_filtered.values.astype(int),
-        'clc': clc_description,
-        'clc_group': clc_group,
-    })
-
-
 def get_landcover_group1(value):
     if value.startswith('m1'):
         return 'Superficies artificiales'
@@ -152,6 +137,21 @@ def process_landcover(data):
         lambda x: utils.DICT_USOS[x])
 
     return coverdf
+
+
+def process_clc_barchart(data):
+    clc = data.loc[:, [
+        s for s in data.columns if s.startswith("m")]].sum()
+    clc_filtered = clc[clc > 1]
+    clc_description = [utils.DICT_USOS[value] for value in clc_filtered.index]
+    clc_group = [get_landcover_group1(value) for value in clc_filtered.index]
+
+    return pd.DataFrame({
+        'labels': clc_filtered.index,
+        'values': clc_filtered.values.astype(int),
+        'clc': clc_description,
+        'clc_group': clc_group,
+    })
 
 
 def process_bubblemap_data(data):
@@ -346,13 +346,12 @@ app.layout = html.Div(
         Input('comunidad-filter', 'value'),
         Input('params-filter', 'value'),
         Input('zoom-slider', 'value'),
-        Input('bubblemap-incendios', 'selectedData'),
         Input('scatter-clima', 'selectedData'),
         Input('date-range', 'start_date'),
         Input('date-range', 'end_date'),
     ]
 )
-def update_landcover(comunidad, params, zoom, selected_incendios, selected_clima, idate, fdate):
+def update_landcover(comunidad, params, zoom, selected_clima, idate, fdate):
     comunidad = comunidad
     ifecha, ffecha = idate, fdate
 
@@ -364,14 +363,20 @@ def update_landcover(comunidad, params, zoom, selected_incendios, selected_clima
         comunidad
     )
 
-    if selected_clima:
-        points = [punto['pointIndex'] for punto in selected_clima['points']]
-        data = data.loc[points, :]
+    # devuelve el indice del DataFrame, no el id de la observacion.
+    # no se puede hacer a traves de SQL, por lo que lo que se deben
+    # consultar todos los incendios para la comunidad y despues
+    # filtrar aquellos que hayan sido seleccionados.
+    def update_data(data, selection):
+        if selection:
+            points = [punto['pointIndex']
+                      for punto in selection['points']]
+            print(points)
+            if len(points) > 0:
+                return data.loc[points, :]
+        return data
 
-    if selected_incendios:
-        points = [punto['pointIndex']
-                  for punto in selected_incendios['points']]
-        data = data.loc[points, :]
+    data = update_data(data, selected_clima)
 
     # figures
     num_incendios = data.loc[:, ['perim_area']].count()
@@ -382,7 +387,7 @@ def update_landcover(comunidad, params, zoom, selected_incendios, selected_clima
         names='labels',
         values='values',
         hole=0.3,
-        title="Superficie clasificada por severidad del incendio",
+        title="Superficie clasificada por la severidad del incendio",
     )
 
     pie_slope = px.pie(
@@ -398,7 +403,7 @@ def update_landcover(comunidad, params, zoom, selected_incendios, selected_clima
         names='labels',
         values='values',
         hole=0.3,
-        title="Superficie clasificada la orientación de la zona quemada",
+        title="Superficie clasificada por la orientación de la zona quemada",
     )
 
     sunburst_chart = px.sunburst(
@@ -478,7 +483,8 @@ def update_landcover(comunidad, params, zoom, selected_incendios, selected_clima
         },
         labels={
             "values": "Superficie quemada",
-            "clc": "Descripción"
+            "clc": "Descripción",
+            "labels": "Clasificación CLC"
         },
         title="Usos de suelo clasificados por CLC",
         height=1200,

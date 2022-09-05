@@ -1,7 +1,6 @@
 import json
 
 import geopandas as gpd
-import pandas as pd
 
 
 def get_query(engine, query):
